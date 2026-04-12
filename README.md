@@ -16,15 +16,24 @@ allowlist / denylist と突合する。
 
 ## インストール
 
+mise (GitHub Releases backend):
+
+```bash
+mise use -g "github:htakahama/guard-bash@latest"
+```
+
+go install:
+
 ```bash
 go install github.com/htakahama/guard-bash/cmd/guard-bash@latest
 ```
 
-または Releases ページから OS/arch 別バイナリをダウンロード。
+または [Releases](https://github.com/htakahama/guard-bash/releases) ページから OS/arch 別バイナリをダウンロード。
 
 ## Claude Code への配備
 
 `~/.claude/settings.json` の PreToolUse に追加する。
+パスは mise / go install のどちらでインストールしたかに合わせる。
 
 ```json
 {
@@ -35,7 +44,7 @@ go install github.com/htakahama/guard-bash/cmd/guard-bash@latest
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/go/bin/guard-bash"
+            "command": "guard-bash"
           }
         ]
       }
@@ -43,6 +52,11 @@ go install github.com/htakahama/guard-bash/cmd/guard-bash@latest
   }
 }
 ```
+
+> [!NOTE]
+> mise が PATH に入っていれば `guard-bash` だけで動作する。
+> フルパス指定の場合は `$HOME/go/bin/guard-bash` (go install) や
+> `mise where github:htakahama/guard-bash` の出力を使う。
 
 ## 開発
 
