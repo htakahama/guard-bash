@@ -86,11 +86,87 @@ level = "warn"
 	}
 }
 
+func TestInvalidTOMLConfig(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte("[[invalid toml!@#"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	t.Setenv("GUARD_CONFIG", path)
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for invalid TOML")
+	}
+}
+
+func TestAllowedFullReplace(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+[policy]
+allowed = ["mytool", "myother"]
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	t.Setenv("GUARD_CONFIG", path)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	allowed := cfg.MergedAllowed()
+	// Should contain only the user-specified commands, not defaults like "git".
+	if slices.Contains(allowed, "git") {
+		t.Errorf("full replace should not include default 'git'")
+	}
+	if !slices.Contains(allowed, "mytool") {
+		t.Errorf("missing mytool in allowed")
+	}
+}
+
+func TestSplitColonEdgeCases(t *testing.T) {
+	cleanEnv(t)
+	// Leading/trailing colons and empty segments should be ignored.
+	t.Setenv("GUARD_EXTRA_ALLOWED", ":foo::bar:")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	allowed := cfg.MergedAllowed()
+	if !slices.Contains(allowed, "foo") || !slices.Contains(allowed, "bar") {
+		t.Errorf("expected foo and bar in allowed, got %v", allowed)
+	}
+}
+
+func TestMergedDeniedUnion(t *testing.T) {
+	cleanEnv(t)
+	t.Setenv("GUARD_EXTRA_DENIED", "badtool")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	denied := cfg.MergedDenied()
+	// Should contain both default denied and extra denied.
+	if !slices.Contains(denied, "sudo") {
+		t.Errorf("missing default 'sudo' in denied")
+	}
+	if !slices.Contains(denied, "badtool") {
+		t.Errorf("missing extra 'badtool' in denied")
+	}
+}
+
 func cleanEnv(t *testing.T) {
 	for _, k := range []string{
 		"GUARD_CONFIG", "XDG_CONFIG_HOME",
 		"GUARD_EXTRA_ALLOWED", "GUARD_EXTRA_DENIED",
-		"GUARD_ALLOWED_DIRS", "GUARD_LOG_LEVEL", "GUARD_LOG_FILE",
+		"GUARD_ALLOWED_DIRS", "GUARD_ARGCHECK_DISABLED",
+		"GUARD_LOG_LEVEL", "GUARD_LOG_FILE",
 	} {
 		t.Setenv(k, "")
 	}

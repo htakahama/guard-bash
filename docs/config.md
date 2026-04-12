@@ -28,6 +28,10 @@ extra_denied  = ["curl"]
 # cwd 以外に cd が許可される dir (サブディレクトリも含む)
 allowed_dirs = ["/home/user/work", "/tmp/scratch"]
 
+[argcheck]
+# 無効にしたいルール ID のリスト
+disabled = ["git-reset-hard"]
+
 [logging]
 # "debug" | "info" | "warn" | "error"
 level = "info"
@@ -37,14 +41,15 @@ file  = ""
 
 ## 環境変数オーバーライド
 
-| 変数                  | 型         | 効果                                                            |
-| --------------------- | ---------- | --------------------------------------------------------------- |
-| `GUARD_CONFIG`        | path       | TOML の読み込み先を明示                                         |
-| `GUARD_EXTRA_ALLOWED` | `:` 区切り | `policy.extra_allowed` に追加                                   |
-| `GUARD_EXTRA_DENIED`  | `:` 区切り | `policy.extra_denied` に追加                                    |
-| `GUARD_ALLOWED_DIRS`  | `:` 区切り | `checkcd.allowed_dirs` に追加 (Claude Code の `--add-dir` 相当) |
-| `GUARD_LOG_LEVEL`     | string     | `logging.level` を上書き                                        |
-| `GUARD_LOG_FILE`      | path       | `logging.file` を上書き                                         |
+| 変数                      | 型         | 効果                                                            |
+| ------------------------- | ---------- | --------------------------------------------------------------- |
+| `GUARD_CONFIG`            | path       | TOML の読み込み先を明示                                         |
+| `GUARD_EXTRA_ALLOWED`     | `:` 区切り | `policy.extra_allowed` に追加                                   |
+| `GUARD_EXTRA_DENIED`      | `:` 区切り | `policy.extra_denied` に追加                                    |
+| `GUARD_ALLOWED_DIRS`      | `:` 区切り | `checkcd.allowed_dirs` に追加 (Claude Code の `--add-dir` 相当) |
+| `GUARD_ARGCHECK_DISABLED` | `:` 区切り | `argcheck.disabled` に追加                                      |
+| `GUARD_LOG_LEVEL`         | string     | `logging.level` を上書き                                        |
+| `GUARD_LOG_FILE`          | path       | `logging.file` を上書き                                         |
 
 ## allowed / denied の優先順位
 
@@ -53,6 +58,22 @@ file  = ""
 1. `extra_denied` に含まれる名前は `allowed`/`extra_allowed` から取り除かれる
 
 動的コマンド名 (`$cmd` など) は常にブロックされる。
+
+## argcheck ルール
+
+コマンド名が許可されていても、危険な引数パターンをブロックする。
+全ルールはデフォルト有効。`disabled` で個別に無効化できる。
+
+| Rule ID                 | 対象        | ブロック条件                                                          |
+| ----------------------- | ----------- | --------------------------------------------------------------------- |
+| `rm-recursive-broad`    | `rm`        | `-r`/`-R` フラグ + 広範パス (`/`, `~`, `.`, `..`, `/home` 等)         |
+| `git-push-force`        | `git push`  | `--force`/`-f`/`--force-with-lease` + `main`/`master` or refspec なし |
+| `git-reset-hard`        | `git reset` | `--hard` フラグ                                                       |
+| `chmod-recursive-broad` | `chmod`     | `-R` + 広範パス                                                       |
+| `chown-recursive-broad` | `chown`     | `-R` + 広範パス                                                       |
+| `pipe-to-shell`         | (any)       | パイプ右辺が `sh`/`bash`/`zsh`/`dash`/`ksh`                           |
+| `git-dir-escape`        | `git`       | `-C <path>` で CWD 外                                                 |
+| `make-dir-escape`       | `make`      | `-C <path>` で CWD 外                                                 |
 
 ## ログフォーマット
 
@@ -74,7 +95,6 @@ file  = ""
 block 時は `level=WARN`, `msg=deny`, `err` フィールドに理由が入る。
 
 > [!NOTE]
-> ログローテーションは guard-bash 本体では行わない。logrotate や
-> journald 側でハンドルする想定。
+> ログローテーションは guard-bash 本体では行わない。logrotate や journald 側でハンドルする想定。
 
 <!-- EOF -->

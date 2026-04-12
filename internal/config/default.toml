@@ -46,6 +46,9 @@ extra_denied  = []
 [checkcd]
 allowed_dirs = []
 
+[argcheck]
+disabled = []
+
 [logging]
 level = "info"
 file  = ""

@@ -18,9 +18,10 @@ var defaultTOML []byte
 
 // Config is the whole guard-bash configuration.
 type Config struct {
-	Policy  PolicyConfig  `toml:"policy"`
-	CheckCD CheckCDConfig `toml:"checkcd"`
-	Logging LoggingConfig `toml:"logging"`
+	Policy   PolicyConfig   `toml:"policy"`
+	CheckCD  CheckCDConfig  `toml:"checkcd"`
+	ArgCheck ArgCheckConfig `toml:"argcheck"`
+	Logging  LoggingConfig  `toml:"logging"`
 }
 
 // PolicyConfig controls allow/deny lists. Allowed/Denied replace the default
@@ -36,6 +37,11 @@ type PolicyConfig struct {
 // may target without being rewritten.
 type CheckCDConfig struct {
 	AllowedDirs []string `toml:"allowed_dirs"`
+}
+
+// ArgCheckConfig controls argument-level safety rules.
+type ArgCheckConfig struct {
+	Disabled []string `toml:"disabled"`
 }
 
 // LoggingConfig configures slog output.
@@ -72,6 +78,12 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// UserConfigPath returns the path that would be used for the user config
+// file, or "" if none is found.
+func UserConfigPath() string {
+	return userConfigPath()
+}
+
 func userConfigPath() string {
 	if p := os.Getenv("GUARD_CONFIG"); p != "" {
 		return p
@@ -95,6 +107,7 @@ func mergeUser(base, user *Config) {
 	base.Policy.ExtraAllowed = append(base.Policy.ExtraAllowed, user.Policy.ExtraAllowed...)
 	base.Policy.ExtraDenied = append(base.Policy.ExtraDenied, user.Policy.ExtraDenied...)
 	base.CheckCD.AllowedDirs = append(base.CheckCD.AllowedDirs, user.CheckCD.AllowedDirs...)
+	base.ArgCheck.Disabled = append(base.ArgCheck.Disabled, user.ArgCheck.Disabled...)
 	if user.Logging.Level != "" {
 		base.Logging.Level = user.Logging.Level
 	}
@@ -118,6 +131,9 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GUARD_ALLOWED_DIRS"); v != "" {
 		cfg.CheckCD.AllowedDirs = append(cfg.CheckCD.AllowedDirs, splitColon(v)...)
+	}
+	if v := os.Getenv("GUARD_ARGCHECK_DISABLED"); v != "" {
+		cfg.ArgCheck.Disabled = append(cfg.ArgCheck.Disabled, splitColon(v)...)
 	}
 }
 
@@ -166,6 +182,15 @@ func (c *Config) MergedDenied() []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+// DisabledArgCheckSet returns the set of disabled argcheck rule IDs.
+func (c *Config) DisabledArgCheckSet() map[string]bool {
+	set := make(map[string]bool, len(c.ArgCheck.Disabled))
+	for _, id := range c.ArgCheck.Disabled {
+		set[id] = true
+	}
+	return set
 }
 
 // EOF

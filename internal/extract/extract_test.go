@@ -31,6 +31,23 @@ func TestCommands(t *testing.T) {
 		{"command -v", "command -v git", []string{"command", "git"}},
 		{"case clause", "case $x in a) git log;; b) cat f;; esac", []string{"git", "cat"}},
 		{"until loop", "until grep foo bar; do sleep 1; done", []string{"grep", "sleep"}},
+		// edge cases
+		{"empty script", ":", []string{":"}},
+		{"triple pipe", "git log | grep foo | head", []string{"git", "grep", "head"}},
+		{"heredoc", "cat <<EOF\nhello\nEOF", []string{"cat"}},
+		{"env multiple assignments", "env A=1 B=2 C=3 git status", []string{"env", "git"}},
+		{"env dynamic inner", "env FOO=bar $cmd", []string{"env", extract.Dynamic}},
+		// Known limitation: -n takes an argument but wrapper parsing treats
+		// any non-flag token as the inner command, so "10" is extracted.
+		{"nice -n arg limitation", "nice -n 10 git log", []string{"nice", "10"}},
+		{"pure assignment no cmd", "FOO=bar", nil},
+		{"dblquote dynamic arg", `echo "$HOME"`, []string{"echo"}},
+		{"while loop", "while git fetch; do sleep 1; done", []string{"git", "sleep"}},
+		{"or chain", "false || git status", []string{"false", "git"}},
+		{"nested subshell pipe", "(git log | head) && echo done", []string{"git", "head", "echo"}},
+		{"semicolon separator", "git add .; git commit -m x", []string{"git", "git"}},
+		{"env no inner cmd", "env FOO=bar", []string{"env"}},
+		{"command wrapper no args", "command", []string{"command"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

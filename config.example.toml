@@ -21,6 +21,16 @@ allowed_dirs = [
   # "/home/user/work",
 ]
 
+[argcheck]
+# 無効にしたい引数チェックルールの ID リスト。
+# 利用可能なルール:
+#   rm-recursive-broad, git-push-force, git-reset-hard,
+#   chmod-recursive-broad, chown-recursive-broad, pipe-to-shell,
+#   git-dir-escape, make-dir-escape
+disabled = [
+  # "git-reset-hard",
+]
+
 [logging]
 # "debug" | "info" | "warn" | "error"
 level = "info"

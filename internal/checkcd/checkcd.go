@@ -7,12 +7,11 @@ package checkcd
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/htakahama/guard-bash/internal/parse"
+	"github.com/htakahama/guard-bash/internal/pathutil"
 )
 
 // Verdict signals how main should rewrite the command.
@@ -64,38 +63,17 @@ func Check(file *syntax.File, cwd string, allowedDirs []string) (Verdict, error)
 		return NeedsPrepend, ErrDynamicTarget
 	}
 
-	abs := resolve(target, cwd)
+	abs := pathutil.Resolve(target, cwd)
 	dirs := append([]string{cwd}, allowedDirs...)
 	for _, d := range dirs {
 		if d == "" {
 			continue
 		}
-		if isUnder(abs, resolve(d, cwd)) {
+		if pathutil.IsUnder(abs, pathutil.Resolve(d, cwd)) {
 			return AlreadyOK, nil
 		}
 	}
 	return NeedsPrepend, fmt.Errorf("%w: %s (allowed: %v)", ErrOutsideAllowed, target, dirs)
-}
-
-func resolve(path, cwd string) string {
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(cwd, path)
-	}
-	if real, err := filepath.EvalSymlinks(path); err == nil {
-		return real
-	}
-	return filepath.Clean(path)
-}
-
-func isUnder(target, allowed string) bool {
-	rel, err := filepath.Rel(allowed, target)
-	if err != nil {
-		return false
-	}
-	if rel == "." {
-		return true
-	}
-	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
 // EOF

@@ -11,8 +11,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
+	"sort"
 	"time"
 
+	toml "github.com/pelletier/go-toml/v2"
+
+	"github.com/htakahama/guard-bash/internal/argcheck"
 	"github.com/htakahama/guard-bash/internal/checkcd"
 	"github.com/htakahama/guard-bash/internal/config"
 	"github.com/htakahama/guard-bash/internal/extract"
@@ -27,6 +32,11 @@ func main() {
 }
 
 func runMain() int {
+	if len(os.Args) > 1 && os.Args[1] == "stat" {
+		tomlFlag := slices.Contains(os.Args[2:], "--toml")
+		return runStat(tomlFlag)
+	}
+
 	start := time.Now()
 
 	cfg, err := config.Load()
@@ -47,6 +57,152 @@ func runMain() int {
 		fmt.Fprintf(os.Stderr, "BLOCKED: %v\n", err)
 		return 2
 	}
+	return 0
+}
+
+func runStat(tomlOut bool) int {
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: config: %v\n", err)
+		return 1
+	}
+
+	if tomlOut {
+		return printEffectiveTOML(cfg)
+	}
+	printStat(cfg)
+	return 0
+}
+
+func printStat(cfg *config.Config) {
+	// Config source
+	path := config.UserConfigPath()
+	if _, err := os.Stat(path); err == nil {
+		fmt.Printf("config_file: %s\n", path)
+	} else {
+		fmt.Println("config_file: (embedded default)")
+	}
+
+	// Environment overrides
+	fmt.Println()
+	fmt.Println("environment:")
+	envVars := []string{
+		"GUARD_CONFIG",
+		"GUARD_EXTRA_ALLOWED",
+		"GUARD_EXTRA_DENIED",
+		"GUARD_ALLOWED_DIRS",
+		"GUARD_ARGCHECK_DISABLED",
+		"GUARD_LOG_LEVEL",
+		"GUARD_LOG_FILE",
+	}
+	for _, k := range envVars {
+		v := os.Getenv(k)
+		if v != "" {
+			fmt.Printf("  %s=%s\n", k, v)
+		} else {
+			fmt.Printf("  %s=\n", k)
+		}
+	}
+
+	// Policy summary
+	allowed := cfg.MergedAllowed()
+	denied := cfg.MergedDenied()
+	sort.Strings(allowed)
+	sort.Strings(denied)
+	fmt.Println()
+	fmt.Printf("policy.allowed: %d commands\n", len(allowed))
+	fmt.Printf("policy.denied:  %d commands\n", len(denied))
+
+	// Argcheck rules
+	disabled := cfg.DisabledArgCheckSet()
+	fmt.Println()
+	fmt.Println("argcheck rules:")
+	for _, id := range argcheck.RuleIDs() {
+		status := "enabled"
+		if disabled[id] {
+			status = "disabled"
+		}
+		fmt.Printf("  %-25s %s\n", id, status)
+	}
+
+	// Logging
+	logPath := cfg.Logging.File
+	if logPath == "" {
+		logPath = logging.DefaultPath()
+	}
+	fmt.Println()
+	fmt.Printf("logging.level: %s\n", cfg.Logging.Level)
+	fmt.Printf("logging.file:  %s\n", logPath)
+}
+
+// effectiveConfig is the flattened config written by --toml.
+type effectiveConfig struct {
+	Policy   effectivePolicy `toml:"policy"`
+	CheckCD  effectiveCD     `toml:"checkcd"`
+	ArgCheck effectiveAC     `toml:"argcheck"`
+	Logging  effectiveLog    `toml:"logging"`
+}
+
+type effectivePolicy struct {
+	Allowed []string `toml:"allowed"`
+	Denied  []string `toml:"denied"`
+}
+
+type effectiveCD struct {
+	AllowedDirs []string `toml:"allowed_dirs"`
+}
+
+type effectiveAC struct {
+	Disabled []string `toml:"disabled"`
+}
+
+type effectiveLog struct {
+	Level string `toml:"level"`
+	File  string `toml:"file"`
+}
+
+func printEffectiveTOML(cfg *config.Config) int {
+	allowed := cfg.MergedAllowed()
+	denied := cfg.MergedDenied()
+	sort.Strings(allowed)
+	sort.Strings(denied)
+
+	logFile := cfg.Logging.File
+	if logFile == "" {
+		logFile = logging.DefaultPath()
+	}
+
+	eff := effectiveConfig{
+		Policy: effectivePolicy{
+			Allowed: allowed,
+			Denied:  denied,
+		},
+		CheckCD: effectiveCD{
+			AllowedDirs: cfg.CheckCD.AllowedDirs,
+		},
+		ArgCheck: effectiveAC{
+			Disabled: cfg.ArgCheck.Disabled,
+		},
+		Logging: effectiveLog{
+			Level: cfg.Logging.Level,
+			File:  logFile,
+		},
+	}
+
+	// Ensure empty slices render as [] not omitted.
+	if eff.CheckCD.AllowedDirs == nil {
+		eff.CheckCD.AllowedDirs = []string{}
+	}
+	if eff.ArgCheck.Disabled == nil {
+		eff.ArgCheck.Disabled = []string{}
+	}
+
+	data, err := toml.Marshal(eff)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: marshal: %v\n", err)
+		return 1
+	}
+	os.Stdout.Write(data)
 	return 0
 }
 
@@ -72,6 +228,11 @@ func run(stdin *os.File, stdout *os.File, cfg *config.Config, logger *slog.Logge
 	res := p.Check(cmds)
 	if res.Decision != policy.DecisionAllow {
 		return policyError(res, cmds)
+	}
+
+	ac := argcheck.New(cfg.DisabledArgCheckSet())
+	if v := ac.Check(file, argcheck.Context{CWD: in.CWD, AllowedDirs: cfg.CheckCD.AllowedDirs}); v != nil {
+		return fmt.Errorf("dangerous arguments blocked [%s]: %s", v.RuleID, v.Message)
 	}
 
 	verdict, err := checkcd.Check(file, in.CWD, cfg.CheckCD.AllowedDirs)
