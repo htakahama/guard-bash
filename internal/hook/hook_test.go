@@ -45,6 +45,10 @@ func TestWriteAllow(t *testing.T) {
 	if err := hook.WriteAllow(&buf, "cd /x && git status", "doc"); err != nil {
 		t.Fatalf("write: %v", err)
 	}
+	raw := buf.String()
+	if strings.Contains(raw, `\u0026`) {
+		t.Errorf("JSON contains escaped ampersand: %s", raw)
+	}
 	var out hook.Output
 	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
 		t.Fatalf("unmarshal: %v", err)

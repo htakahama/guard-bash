@@ -62,6 +62,7 @@ func WriteAllow(w io.Writer, cmd, desc string) error {
 		},
 	}
 	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	return enc.Encode(out)
 }
