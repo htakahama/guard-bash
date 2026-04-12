@@ -1,0 +1,28 @@
+# guard-bash ユーザー設定の例。
+# ~/.config/guard-bash/config.toml に配置するか、GUARD_CONFIG 環境変数で
+# 明示的にパスを指定する。
+#
+# 各キーの意味は docs/config.md を参照。
+
+[policy]
+# embedded default に追加したいコマンド
+extra_allowed = [
+  # "my-internal-cli",
+]
+
+# embedded default に追加で禁止したいコマンド
+extra_denied = [
+  # "curl",
+]
+
+[checkcd]
+# cwd 以外に cd が許可される dir (サブディレクトリも含む)
+allowed_dirs = [
+  # "/home/user/work",
+]
+
+[logging]
+# "debug" | "info" | "warn" | "error"
+level = "info"
+# 空なら ${XDG_STATE_HOME:-$HOME/.local/state}/guard-bash/guard-bash.log
+file = ""

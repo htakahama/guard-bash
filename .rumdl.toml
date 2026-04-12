@@ -1,0 +1,46 @@
+# Settings - rumdl
+# https://github.com/rvben/rumdl
+
+[global]
+exclude = [
+  "dist/**",
+  "legacy/**",
+  "**/CHANGELOG.md",
+]
+
+# --- 無効化ルール ---
+
+# MD009: trailing-spaces -- .editorconfig で md は trim_trailing_whitespace = false
+[MD009]
+enabled = false
+
+# MD012: multiple-blank-lines -- EOF 規約 (\n\n<!-- EOF -->\n) で 2 空行を使う
+[MD012]
+enabled = false
+
+# MD024: no-duplicate-heading -- 同名見出しは scope 分離で許容
+[MD024]
+enabled = false
+
+# MD025: single-title -- frontmatter 付きドキュメントで誤検知
+[MD025]
+enabled = false
+
+# MD033: no-inline-html -- <!-- EOF --> 等を使う
+[MD033]
+enabled = false
+
+# MD041: first-line-heading -- frontmatter で始まるファイルがある
+[MD041]
+enabled = false
+
+# --- カスタマイズルール ---
+
+# MD013: line-length -- max_line_length = 124
+[MD013]
+code-blocks = false
+line-length = 124
+tables      = false
+
+
+# EOF

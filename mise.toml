@@ -1,0 +1,72 @@
+[tools]
+go            = "1.26"
+golangci-lint = "latest"
+goreleaser    = "latest"
+rumdl         = "latest"
+
+# --- Go ---
+[tasks.build]
+description = "Build guard-bash binary"
+run         = "go build -o dist/guard-bash ./cmd/guard-bash"
+
+[tasks.install]
+description = "Install guard-bash to $HOME/go/bin"
+env         = { GOBIN = "{{env.HOME}}/go/bin" }
+run         = "go install ./cmd/guard-bash"
+
+[tasks.test]
+description = "Run unit tests"
+run         = "go test ./..."
+
+[tasks."test:integration"]
+description = "Run integration tests (spawns built binary)"
+run         = "go test -tags=integration ./test/integration/..."
+
+[tasks.vet]
+description = "Run go vet"
+run         = "go vet ./..."
+
+[tasks.lint]
+description = "Run golangci-lint"
+run         = "golangci-lint run ./..."
+
+[tasks.fmt]
+description = "Run gofmt -w"
+run         = "gofmt -w ."
+
+[tasks."fmt:check"]
+description = "Check gofmt (no write)"
+run         = 'test -z "$(gofmt -l .)"'
+
+[tasks.tidy]
+description = "Run go mod tidy"
+run         = "go mod tidy"
+
+[tasks."release:snapshot"]
+description = "goreleaser snapshot build (no publish)"
+run         = "goreleaser release --snapshot --clean"
+
+# --- Markdown ---
+[tasks."md:lint"]
+description = "Lint markdown files"
+run         = "rumdl check ."
+
+[tasks."md:fmt"]
+description = "Format markdown files (mdformat + rumdl)"
+run         = "git ls-files '*.md' ':(exclude)legacy/**' | xargs uvx --from 'mdformat>=1.0.0' --with mdformat-gfm --with mdformat-frontmatter mdformat --wrap keep && rumdl fmt ."
+
+[tasks."md:fmt:check"]
+description = "Check markdown format (no write)"
+run         = "git ls-files '*.md' ':(exclude)legacy/**' | xargs uvx --from 'mdformat>=1.0.0' --with mdformat-gfm --with mdformat-frontmatter mdformat --wrap keep --check && rumdl check --check ."
+
+# --- All ---
+[tasks.format]
+depends     = ["fmt", "md:fmt"]
+description = "Format all targets"
+
+[tasks.check]
+depends     = ["fmt:check", "vet", "lint", "test", "md:lint", "md:fmt:check"]
+description = "Run all checks"
+
+
+# EOF

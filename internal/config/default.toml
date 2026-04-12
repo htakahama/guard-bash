@@ -1,0 +1,51 @@
+[policy]
+allowed = [
+  # shell builtin / wrapper
+  "cd", "[", "test", ":", "true", "false",
+  "env", "command", "nice", "nohup",
+  # vcs
+  "git", "gh",
+  # lang / build
+  "cargo", "go", "node", "npm", "npx", "pnpm", "yarn", "bun", "deno",
+  "python", "python3", "pip", "pip3", "uv", "uvx", "ruff", "mypy", "pyright", "pytest",
+  "ruby", "gem", "bundle", "rake",
+  # infra / ops
+  "docker", "docker-compose", "podman", "kubectl", "helm", "terraform",
+  "gcloud", "firebase", "gsutil", "bq",
+  "aws", "sam", "cdk",
+  "az", "func", "azd",
+  # shell utilities
+  "pwd", "cat", "head", "tail", "less", "grep", "rg", "find", "ls", "tree", "wc", "diff", "sort", "uniq",
+  "sed", "awk", "cut", "tr", "tee", "xargs",
+  "echo", "printf", "printenv", "date", "whoami", "hostname", "id", "which", "type",
+  "mkdir", "cp", "mv", "ln", "rm", "rmdir", "touch", "chmod", "chown",
+  "tar", "gzip", "gunzip", "zip", "unzip", "curl", "wget",
+  "jq", "yq",
+  # tools
+  "mise", "task", "make", "cmake", "shellcheck", "shfmt",
+]
+
+denied = [
+  # 破壊的ディスク操作
+  "dd", "mkfs", "fdisk", "parted", "mount", "umount",
+  # システム制御
+  "reboot", "shutdown", "poweroff", "halt", "init", "systemctl",
+  # 危険なネットワーク操作
+  "iptables", "ip6tables", "nft", "tc",
+  # カーネル / モジュール
+  "insmod", "rmmod", "modprobe", "sysctl",
+  # ユーザー / 権限昇格
+  "sudo", "su", "passwd", "useradd", "userdel", "usermod", "chroot",
+  # 動的実行 / evaluation
+  "eval", "exec", "source", ".",
+]
+
+extra_allowed = []
+extra_denied  = []
+
+[checkcd]
+allowed_dirs = []
+
+[logging]
+level = "info"
+file  = ""
