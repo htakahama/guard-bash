@@ -27,14 +27,28 @@ import (
 	"github.com/htakahama/guard-bash/internal/policy"
 )
 
+// Injected via -ldflags at release build time by GoReleaser. In dev builds
+// these remain at their default values.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	os.Exit(runMain())
 }
 
 func runMain() int {
-	if len(os.Args) > 1 && os.Args[1] == "stat" {
-		tomlFlag := slices.Contains(os.Args[2:], "--toml")
-		return runStat(tomlFlag)
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v", "version":
+			fmt.Printf("guard-bash %s (commit %s, built %s)\n", version, commit, date)
+			return 0
+		case "stat":
+			tomlFlag := slices.Contains(os.Args[2:], "--toml")
+			return runStat(tomlFlag)
+		}
 	}
 
 	start := time.Now()
