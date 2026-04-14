@@ -15,14 +15,20 @@ allowed = [
   "aws", "sam", "cdk",
   "az", "func", "azd",
   # shell utilities
-  "pwd", "cat", "head", "tail", "less", "grep", "rg", "find", "ls", "tree", "wc", "diff", "sort", "uniq",
-  "sed", "awk", "cut", "tr", "tee", "xargs",
+  "pwd", "cat", "tac", "head", "tail", "less", "more", "nl", "grep", "rg", "find", "ls", "tree", "wc", "diff", "cmp",
+  "sort", "uniq", "comm", "join", "paste", "split", "column", "fold", "rev",
+  "sed", "awk", "cut", "tr", "tee", "xargs", "expr", "seq", "yes",
   "echo", "printf", "printenv", "date", "whoami", "hostname", "id", "which", "type",
   "mkdir", "cp", "mv", "ln", "rm", "rmdir", "touch", "chmod", "chown",
-  "tar", "gzip", "gunzip", "zip", "unzip", "curl", "wget",
+  "tar", "gzip", "gunzip", "zip", "unzip", "xz", "bzip2", "curl", "wget",
   "jq", "yq",
+  "basename", "dirname", "realpath", "readlink", "wslpath", "file", "stat", "du", "df", "uname",
+  "base64", "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum",
+  "od", "xxd", "hexdump",
+  "sleep", "timeout", "time", "watch", "ps", "pgrep",
   # tools
   "mise", "task", "make", "cmake", "shellcheck", "shfmt",
+  "rtk",
 ]
 
 denied = [
