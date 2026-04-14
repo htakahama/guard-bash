@@ -29,6 +29,7 @@ allowed = [
   # tools
   "mise", "task", "make", "cmake", "shellcheck", "shfmt",
   "rtk",
+  "guard-bash",
 ]
 
 denied = [
