@@ -2,6 +2,12 @@
 allowed = [
   # shell builtin / wrapper
   "cd", "[", "test", ":", "true", "false",
+  "read", "export", "unset", "declare", "local", "let",
+  "return", "shift", "wait", "trap", "getopts",
+  "set", "shopt", "builtin", "hash", "enable",
+  "pushd", "popd", "dirs",
+  "jobs", "kill", "bg", "fg", "disown",
+  "umask", "ulimit",
   "env", "command", "nice", "nohup",
   # vcs
   "git", "gh",
@@ -15,7 +21,7 @@ allowed = [
   "aws", "sam", "cdk",
   "az", "func", "azd",
   # shell utilities
-  "pwd", "cat", "tac", "head", "tail", "less", "more", "nl", "grep", "rg", "find", "ls", "tree", "wc", "diff", "cmp",
+  "pwd", "cat", "tac", "head", "tail", "less", "more", "nl", "grep", "rg", "find", "fd", "ls", "tree", "wc", "diff", "cmp",
   "sort", "uniq", "comm", "join", "paste", "split", "column", "fold", "rev",
   "sed", "awk", "cut", "tr", "tee", "xargs", "expr", "seq", "yes",
   "echo", "printf", "printenv", "date", "whoami", "hostname", "id", "which", "type",
