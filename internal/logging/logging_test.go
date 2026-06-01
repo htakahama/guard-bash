@@ -16,7 +16,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	defer closer()
+	defer func() { _ = closer() }()
 
 	logger.Info("test message", "key", "value")
 
@@ -37,7 +37,7 @@ func TestInitCreatesDirectories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	defer closer()
+	defer func() { _ = closer() }()
 
 	logger.Debug("debug message")
 	if _, err := os.Stat(path); err != nil {
@@ -53,7 +53,7 @@ func TestInitLevels(t *testing.T) {
 			if err != nil {
 				t.Fatalf("init with level %q: %v", level, err)
 			}
-			closer()
+			_ = closer()
 		})
 	}
 }

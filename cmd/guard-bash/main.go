@@ -229,7 +229,10 @@ func printEffectiveTOML(cfg *config.Config) int {
 		fmt.Fprintf(os.Stderr, "error: marshal: %v\n", err)
 		return 1
 	}
-	os.Stdout.Write(data)
+	if _, err := os.Stdout.Write(data); err != nil {
+		fmt.Fprintf(os.Stderr, "error: write: %v\n", err)
+		return 1
+	}
 	return 0
 }
 
