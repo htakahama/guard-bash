@@ -8,6 +8,10 @@ allowed = [
   "pushd", "popd", "dirs",
   "jobs", "kill", "bg", "fg", "disown",
   "umask", "ulimit",
+  "break", "continue", "exit", "logout", "suspend",
+  "readonly", "typeset", "mapfile", "readarray",
+  "bind", "caller", "fc", "help", "history", "times",
+  "compgen", "complete", "compopt",
   "env", "command", "nice", "nohup",
   # vcs
   "git", "gh",
