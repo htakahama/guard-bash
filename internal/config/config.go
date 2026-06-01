@@ -24,9 +24,11 @@ type Config struct {
 	Logging  LoggingConfig  `toml:"logging"`
 }
 
-// PolicyConfig controls allow/deny lists. Allowed/Denied replace the default
-// entirely when set by the user; ExtraAllowed/ExtraDenied append.
+// PolicyConfig controls the policy mode and allow/deny lists. Allowed/Denied
+// replace the default entirely when set by the user; ExtraAllowed/ExtraDenied
+// append. Mode is "allowlist" or "denylist" (see internal/policy).
 type PolicyConfig struct {
+	Mode         string   `toml:"mode"`
 	Allowed      []string `toml:"allowed"`
 	Denied       []string `toml:"denied"`
 	ExtraAllowed []string `toml:"extra_allowed"`
@@ -98,6 +100,9 @@ func userConfigPath() string {
 }
 
 func mergeUser(base, user *Config) {
+	if user.Policy.Mode != "" {
+		base.Policy.Mode = user.Policy.Mode
+	}
 	if len(user.Policy.Allowed) > 0 {
 		base.Policy.Allowed = user.Policy.Allowed
 	}
@@ -117,6 +122,9 @@ func mergeUser(base, user *Config) {
 }
 
 func applyEnv(cfg *Config) {
+	if v := os.Getenv("GUARD_POLICY_MODE"); v != "" {
+		cfg.Policy.Mode = v
+	}
 	if v := os.Getenv("GUARD_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
 	}

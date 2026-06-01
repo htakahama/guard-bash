@@ -31,6 +31,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Logging.Level != "info" {
 		t.Errorf("default level = %q, want info", cfg.Logging.Level)
 	}
+	if cfg.Policy.Mode != "denylist" {
+		t.Errorf("default policy.mode = %q, want denylist", cfg.Policy.Mode)
+	}
 }
 
 func TestEnvOverrides(t *testing.T) {

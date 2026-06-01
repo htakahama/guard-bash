@@ -5,7 +5,13 @@
 # 各キーの意味は docs/config.md を参照。
 
 [policy]
-# embedded default に追加したいコマンド
+# "denylist" (default): denied のコマンドだけをブロックし、それ以外は素通しする。
+#   cwd 管理と argcheck は引き続き適用される。基本的なガードは Claude Code 本体に委ねる。
+# "allowlist": allowed に列挙したコマンドのみ許可する厳格モード。
+# mode = "denylist"
+
+# embedded default に追加で禁止したいコマンド
+# extra_allowed は mode = "allowlist" のときだけ意味を持つ。
 extra_allowed = [
   # "my-internal-cli",
 ]

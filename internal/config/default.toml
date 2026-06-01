@@ -1,4 +1,10 @@
 [policy]
+# "denylist": denied のコマンドだけをブロックし、それ以外は素通しする (cwd 管理と
+#             argcheck は引き続き適用)。基本的なガードは Claude Code 本体に委ねる前提。
+# "allowlist": allowed に列挙したコマンドのみ許可する厳格モード。
+mode = "denylist"
+
+# allowed は mode = "allowlist" のときだけ参照される。denylist モードでは無視される。
 allowed = [
   # shell builtin / wrapper
   "cd", "[", "test", ":", "true", "false",

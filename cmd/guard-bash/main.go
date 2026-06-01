@@ -102,6 +102,7 @@ func printStat(cfg *config.Config) {
 	fmt.Println("environment:")
 	envVars := []string{
 		"GUARD_CONFIG",
+		"GUARD_POLICY_MODE",
 		"GUARD_EXTRA_ALLOWED",
 		"GUARD_EXTRA_DENIED",
 		"GUARD_ALLOWED_DIRS",
@@ -124,6 +125,7 @@ func printStat(cfg *config.Config) {
 	sort.Strings(allowed)
 	sort.Strings(denied)
 	fmt.Println()
+	fmt.Printf("policy.mode:    %s\n", policy.ParseMode(cfg.Policy.Mode))
 	fmt.Printf("policy.allowed: %d commands\n", len(allowed))
 	fmt.Printf("policy.denied:  %d commands\n", len(denied))
 
@@ -158,6 +160,7 @@ type effectiveConfig struct {
 }
 
 type effectivePolicy struct {
+	Mode    string   `toml:"mode"`
 	Allowed []string `toml:"allowed"`
 	Denied  []string `toml:"denied"`
 }
@@ -188,6 +191,7 @@ func printEffectiveTOML(cfg *config.Config) int {
 
 	eff := effectiveConfig{
 		Policy: effectivePolicy{
+			Mode:    string(policy.ParseMode(cfg.Policy.Mode)),
 			Allowed: allowed,
 			Denied:  denied,
 		},
@@ -238,7 +242,7 @@ func run(stdin *os.File, stdout *os.File, cfg *config.Config, logger *slog.Logge
 	}
 
 	cmds := extract.Commands(file)
-	p := policy.New(cfg.MergedAllowed(), cfg.MergedDenied())
+	p := policy.New(policy.ParseMode(cfg.Policy.Mode), cfg.MergedAllowed(), cfg.MergedDenied())
 	res := p.Check(cmds)
 	if res.Decision != policy.DecisionAllow {
 		return policyError(res, cmds)

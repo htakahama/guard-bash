@@ -36,7 +36,9 @@ graph TD
 1. `exec.Command("git", "-C", cwd, "rev-parse", "--git-dir")` で cwd が git 管理下か確認
 1. `parse.Parse(command)` で `*syntax.File` を取得(`mvdan.cc/sh/v3/syntax` は shfmt のパーサ本体)
 1. `extract.Commands(file)` で `syntax.Walk` を使い全 `*syntax.CallExpr`を訪問、各ノードから静的解決できるコマンド名を抽出
-1. `policy.New(...).Check(commands)` で denylist / allowlist と突合。最初の非 allow で即 return
+1. `policy.New(mode, ...).Check(commands)` で policy と突合。最初の非 allow で即 return。
+   `mode = denylist` (default) は denied のみブロックし未知名・動的名は素通し、`allowlist` は
+   allowlist 外と動的名もブロックする
 1. `argcheck.New(disabled).Check(file, ctx)` で許可コマンドの危険な引数パターンを検査
    (rm -rf /, git push --force main, curl | bash 等)
 1. `checkcd.Check(file, cwd, allowed_dirs)` で先頭 Stmt の leftmost 子が `cd <static-path>` であれば、
@@ -63,7 +65,8 @@ graph TD
 - `Lit` / `SglQuoted` / `DblQuoted` 内の `Lit` のみを連結し静的文字列に
 - `ParamExp` / `CmdSubst` / `ArithmExp` / `ProcSubst` のいずれかが含まれる
   Word は「動的」と判定し `extract.Dynamic` (`__DYNAMIC__`) を emit
-- 動的なコマンド名は `policy.Check` で常にブロックされる
+- 動的なコマンド名は `allowlist` モードでは `policy.Check` でブロックされる。
+  `denylist` モードでは denylist と突合できないため素通しする (モデル信頼前提の trade-off)
 
 ## Wrapper コマンドの扱い
 

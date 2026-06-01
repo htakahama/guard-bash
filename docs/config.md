@@ -16,6 +16,9 @@ guard-bash の動作は TOML 設定ファイルと環境変数で調整できる
 
 ```toml
 [policy]
+# "denylist" (default) | "allowlist"
+mode = "denylist"
+
 # allowed / denied を非空で指定すると embedded default を完全に置き換える。
 allowed = ["git", "gh", "cat", ...]
 denied  = ["sudo", "eval", ...]
@@ -44,6 +47,7 @@ file  = ""
 | 変数                      | 型         | 効果                                                            |
 | ------------------------- | ---------- | --------------------------------------------------------------- |
 | `GUARD_CONFIG`            | path       | TOML の読み込み先を明示                                         |
+| `GUARD_POLICY_MODE`       | string     | `policy.mode` を上書き (`denylist` / `allowlist`)              |
 | `GUARD_EXTRA_ALLOWED`     | `:` 区切り | `policy.extra_allowed` に追加                                   |
 | `GUARD_EXTRA_DENIED`      | `:` 区切り | `policy.extra_denied` に追加                                    |
 | `GUARD_ALLOWED_DIRS`      | `:` 区切り | `checkcd.allowed_dirs` に追加 (Claude Code の `--add-dir` 相当) |
@@ -51,13 +55,30 @@ file  = ""
 | `GUARD_LOG_LEVEL`         | string     | `logging.level` を上書き                                        |
 | `GUARD_LOG_FILE`          | path       | `logging.file` を上書き                                         |
 
-## allowed / denied の優先順位
+## policy.mode
+
+| mode                  | 挙動                                                                              |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `denylist` (default)  | `denied` のコマンドだけをブロックし、それ以外は素通し。動的コマンド名も許可する    |
+| `allowlist`           | `allowed` に列挙したコマンドのみ許可する厳格モード。動的コマンド名はブロックする   |
+
+`denylist` モードは「基本的なガードは Claude Code 本体に委ね、guard-bash は致命的操作の
+決定論的バックストップ (denied list + argcheck) と cwd 管理に専念する」設計。`allowed` /
+`extra_allowed` は `allowlist` モードのときだけ参照される。
+
+どちらのモードでも以下は共通:
+
+- `denied` / `extra_denied` に一致 -> ブロック
+- argcheck (危険な引数パターン) と checkcd (cwd 管理) は適用される
+
+## allowed / denied の優先順位 (allowlist モード時)
 
 1. `denied` (default) / `extra_denied` に一致 -> ブロック
 1. `allowed` (default) + `extra_allowed` の union に含まれていない -> ブロック
 1. `extra_denied` に含まれる名前は `allowed`/`extra_allowed` から取り除かれる
 
-動的コマンド名 (`$cmd` など) は常にブロックされる。
+動的コマンド名 (`$cmd` など) は allowlist モードでは常にブロックされる
+(denylist モードでは許可される)。
 
 ## argcheck ルール
 
