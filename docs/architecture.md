@@ -36,8 +36,11 @@ graph TD
 1. `exec.Command("git", "-C", cwd, "rev-parse", "--git-dir")` で cwd が git 管理下か確認
 1. `parse.Parse(command)` で `*syntax.File` を取得(`mvdan.cc/sh/v3/syntax` は shfmt のパーサ本体)
 1. `extract.Commands(file)` で `syntax.Walk` を使い全 `*syntax.CallExpr`を訪問、各ノードから静的解決できるコマンド名を抽出
+1. `transcript.CurrentModel(transcript_path)` で payload の transcript JSONL 末尾から使用中モデル名を取得し、
+   `config.ResolveMode(model)` で mode を決定 (`model_rules` 部分一致 -> fallback `policy.mode`、
+   `GUARD_POLICY_MODE` 設定時は強制)
 1. `policy.New(mode, ...).Check(commands)` で policy と突合。最初の非 allow で即 return。
-   `mode = denylist` (default) は denied のみブロックし未知名・動的名は素通し、`allowlist` は
+   `mode = denylist` は denied のみブロックし未知名・動的名は素通し、`allowlist` は
    allowlist 外と動的名もブロックする
 1. `argcheck.New(disabled).Check(file, ctx)` で許可コマンドの危険な引数パターンを検査
    (rm -rf /, git push --force main, curl | bash 等)

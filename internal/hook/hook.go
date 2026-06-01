@@ -10,8 +10,9 @@ import (
 
 // Input is the subset of the PreToolUse payload guard-bash consumes.
 type Input struct {
-	CWD       string    `json:"cwd"`
-	ToolInput ToolInput `json:"tool_input"`
+	CWD            string    `json:"cwd"`
+	TranscriptPath string    `json:"transcript_path"`
+	ToolInput      ToolInput `json:"tool_input"`
 }
 
 // ToolInput mirrors .tool_input for the Bash tool.

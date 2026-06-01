@@ -7,7 +7,8 @@ Claude Code の `PreToolUse` フックとして Bash ツール呼び出しを検
 デフォルトは `denylist` モード。`denied` の致命的コマンドだけをブロックし、それ以外は素通しする
 (cwd 管理と argcheck は適用)。基本的なガードは Claude Code 本体に委ね、guard-bash は決定論的な
 バックストップに専念する。厳格に許可リスト方式へ切り替えたい場合は `policy.mode = "allowlist"`
-を設定する (`docs/config.md` 参照)。
+を設定する。`[[policy.model_rules]]` で使用中モデルごとに mode を出し分けることもできる
+(例: 信頼する Opus は denylist、Sonnet は allowlist)。詳細は `docs/config.md` 参照。
 
 ## 特徴
 
@@ -15,6 +16,7 @@ Claude Code の `PreToolUse` フックとして Bash ツール呼び出しを検
 - AST ベース検査: `for f in $(git ls-files); do rm "$f"; done` のようなネストされた構文でも内部の `rm` を正しく検出
 - 先頭 `cd <path>` の AST ベース判定と許可 dir 配下チェック
 - TOML 設定 (embedded default + ユーザー override)
+- モデル別 policy mode (transcript からモデル名を取得し `model_rules` で出し分け)
 - 構造化ログ (`log/slog` JSON handler) をファイル出力
 
 ## 制限事項
@@ -99,8 +101,17 @@ go install github.com/htakahama/guard-bash/cmd/guard-bash@latest
 
 ```toml
 [policy]
+# "denylist" (default) | "allowlist"。model_rules 不一致時の fallback を兼ねる。
+mode = "denylist"
 extra_allowed = ["my-internal-cli"]
 extra_denied = ["curl"]
+
+# 使用中モデル名 (transcript から取得) で mode を出し分ける。先頭一致優先。
+# 例: Opus は信頼して denylist (素通し)、Sonnet 等は allowlist (厳格)
+#   mode = "allowlist"
+#   [[policy.model_rules]]
+#   match = "opus"
+#   mode  = "denylist"
 
 [checkcd]
 allowed_dirs = ["/home/user/work"]
@@ -120,6 +131,7 @@ level = "info"
 
 | 変数                      | 効果                                 |
 | ------------------------- | ------------------------------------ |
+| `GUARD_POLICY_MODE`       | mode を強制 (`model_rules` を無視)   |
 | `GUARD_EXTRA_ALLOWED`     | 許可コマンド追加 (`:` 区切り)        |
 | `GUARD_EXTRA_DENIED`      | 拒否コマンド追加 (`:` 区切り)        |
 | `GUARD_ALLOWED_DIRS`      | cd 許可ディレクトリ追加 (`:` 区切り) |

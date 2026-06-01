@@ -8,7 +8,16 @@
 # "denylist" (default): denied のコマンドだけをブロックし、それ以外は素通しする。
 #   cwd 管理と argcheck は引き続き適用される。基本的なガードは Claude Code 本体に委ねる。
 # "allowlist": allowed に列挙したコマンドのみ許可する厳格モード。
+# mode は model_rules のどれにも一致しなかった場合の fallback。
 # mode = "denylist"
+
+# 使用中モデル名 (transcript から取得) で mode を出し分ける。先頭一致優先。
+# GUARD_POLICY_MODE が設定されている場合は model_rules は無視される (明示 override 最優先)。
+# 例: Opus は信頼して denylist (素通し)、Sonnet 等は allowlist (厳格) にする
+# mode = "allowlist"
+# [[policy.model_rules]]
+# match = "opus"
+# mode  = "denylist"
 
 # embedded default に追加で禁止したいコマンド
 # extra_allowed は mode = "allowlist" のときだけ意味を持つ。

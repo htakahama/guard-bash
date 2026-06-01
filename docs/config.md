@@ -16,8 +16,13 @@ guard-bash の動作は TOML 設定ファイルと環境変数で調整できる
 
 ```toml
 [policy]
-# "denylist" (default) | "allowlist"
+# "denylist" (default) | "allowlist"。model_rules 不一致時の fallback も兼ねる。
 mode = "denylist"
+
+# 使用中モデル名 (transcript から取得) で mode を出し分ける。先頭一致優先。
+[[policy.model_rules]]
+match = "opus"      # model 名への部分一致
+mode  = "denylist"
 
 # allowed / denied を非空で指定すると embedded default を完全に置き換える。
 allowed = ["git", "gh", "cat", ...]
@@ -47,7 +52,7 @@ file  = ""
 | 変数                      | 型         | 効果                                                            |
 | ------------------------- | ---------- | --------------------------------------------------------------- |
 | `GUARD_CONFIG`            | path       | TOML の読み込み先を明示                                         |
-| `GUARD_POLICY_MODE`       | string     | `policy.mode` を上書き (`denylist` / `allowlist`)              |
+| `GUARD_POLICY_MODE`       | string     | mode を強制 (`denylist` / `allowlist`)。設定時 `model_rules` は無視 |
 | `GUARD_EXTRA_ALLOWED`     | `:` 区切り | `policy.extra_allowed` に追加                                   |
 | `GUARD_EXTRA_DENIED`      | `:` 区切り | `policy.extra_denied` に追加                                    |
 | `GUARD_ALLOWED_DIRS`      | `:` 区切り | `checkcd.allowed_dirs` に追加 (Claude Code の `--add-dir` 相当) |
@@ -70,6 +75,31 @@ file  = ""
 
 - `denied` / `extra_denied` に一致 -> ブロック
 - argcheck (危険な引数パターン) と checkcd (cwd 管理) は適用される
+
+### model_rules (モデル別 mode)
+
+PreToolUse payload にモデル名は含まれないが、payload の `transcript_path` が指す JSONL の
+最新 assistant エントリにモデル名が記録されている。guard-bash はこれを読んでモードを決める。
+
+`[[policy.model_rules]]` を上から順に評価し、`match` が使用中モデル名の部分文字列に一致した
+最初のルールの `mode` を採用する。どれにも一致しない (またはモデル名が取得できない) 場合は
+`policy.mode` に fallback する。`/model` でのモデル切り替えにも自動追従する。
+
+```toml
+# Opus は信頼して denylist (素通し)、Sonnet 等は allowlist (厳格) にする例
+[policy]
+mode = "allowlist"            # fallback (Sonnet・不明モデル -> 厳格)
+
+[[policy.model_rules]]
+match = "opus"
+mode  = "denylist"           # Opus -> 素通し
+```
+
+mode 決定の優先順位:
+
+1. `GUARD_POLICY_MODE` 環境変数 (設定時は model_rules を無視して強制)
+1. 最初に一致した `model_rules` の mode
+1. `policy.mode` (fallback)
 
 ## allowed / denied の優先順位 (allowlist モード時)
 

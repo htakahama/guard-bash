@@ -26,13 +26,23 @@ type Config struct {
 
 // PolicyConfig controls the policy mode and allow/deny lists. Allowed/Denied
 // replace the default entirely when set by the user; ExtraAllowed/ExtraDenied
-// append. Mode is "allowlist" or "denylist" (see internal/policy).
+// append. Mode is "allowlist" or "denylist" (see internal/policy) and acts as
+// the fallback when no ModelRule matches.
 type PolicyConfig struct {
-	Mode         string   `toml:"mode"`
-	Allowed      []string `toml:"allowed"`
-	Denied       []string `toml:"denied"`
-	ExtraAllowed []string `toml:"extra_allowed"`
-	ExtraDenied  []string `toml:"extra_denied"`
+	Mode         string      `toml:"mode"`
+	ModelRules   []ModelRule `toml:"model_rules"`
+	Allowed      []string    `toml:"allowed"`
+	Denied       []string    `toml:"denied"`
+	ExtraAllowed []string    `toml:"extra_allowed"`
+	ExtraDenied  []string    `toml:"extra_denied"`
+}
+
+// ModelRule maps a model-name substring to a policy mode. The first rule whose
+// Match is a substring of the active model selects the mode; if none match,
+// PolicyConfig.Mode is used.
+type ModelRule struct {
+	Match string `toml:"match"`
+	Mode  string `toml:"mode"`
 }
 
 // CheckCDConfig adds directories beyond the hook's cwd that a leading `cd`
@@ -103,6 +113,7 @@ func mergeUser(base, user *Config) {
 	if user.Policy.Mode != "" {
 		base.Policy.Mode = user.Policy.Mode
 	}
+	base.Policy.ModelRules = append(base.Policy.ModelRules, user.Policy.ModelRules...)
 	if len(user.Policy.Allowed) > 0 {
 		base.Policy.Allowed = user.Policy.Allowed
 	}
@@ -123,7 +134,10 @@ func mergeUser(base, user *Config) {
 
 func applyEnv(cfg *Config) {
 	if v := os.Getenv("GUARD_POLICY_MODE"); v != "" {
+		// Explicit override wins over per-model rules: force this mode
+		// regardless of which model is active.
 		cfg.Policy.Mode = v
+		cfg.Policy.ModelRules = nil
 	}
 	if v := os.Getenv("GUARD_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
@@ -190,6 +204,18 @@ func (c *Config) MergedDenied() []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+// ResolveMode returns the effective policy mode string for the given model
+// name. The first ModelRule whose Match is a substring of model wins; with no
+// match (including an empty model) it falls back to Policy.Mode.
+func (c *Config) ResolveMode(model string) string {
+	for _, r := range c.Policy.ModelRules {
+		if r.Match != "" && strings.Contains(model, r.Match) {
+			return r.Mode
+		}
+	}
+	return c.Policy.Mode
 }
 
 // DisabledArgCheckSet returns the set of disabled argcheck rule IDs.

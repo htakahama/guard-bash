@@ -36,6 +36,88 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
+func TestResolveMode(t *testing.T) {
+	cfg := &config.Config{Policy: config.PolicyConfig{
+		Mode: "allowlist",
+		ModelRules: []config.ModelRule{
+			{Match: "opus", Mode: "denylist"},
+		},
+	}}
+	cases := []struct {
+		model string
+		want  string
+	}{
+		{"claude-opus-4-8", "denylist"},
+		{"claude-sonnet-4-6", "allowlist"}, // no rule match -> fallback
+		{"", "allowlist"},                  // unknown model -> fallback
+	}
+	for _, tc := range cases {
+		if got := cfg.ResolveMode(tc.model); got != tc.want {
+			t.Errorf("ResolveMode(%q) = %q, want %q", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestModelRulesFromUserConfig(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+[policy]
+mode = "allowlist"
+
+[[policy.model_rules]]
+match = "opus"
+mode  = "denylist"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	t.Setenv("GUARD_CONFIG", path)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := cfg.ResolveMode("claude-opus-4-8"); got != "denylist" {
+		t.Errorf("opus -> %q, want denylist", got)
+	}
+	if got := cfg.ResolveMode("claude-sonnet-4-6"); got != "allowlist" {
+		t.Errorf("sonnet -> %q, want allowlist", got)
+	}
+}
+
+func TestEnvOverrideClearsModelRules(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	content := `
+[policy]
+mode = "allowlist"
+
+[[policy.model_rules]]
+match = "opus"
+mode  = "denylist"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	t.Setenv("GUARD_CONFIG", path)
+	t.Setenv("GUARD_POLICY_MODE", "denylist")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	// Explicit env override forces the mode for every model, ignoring rules.
+	if got := cfg.ResolveMode("claude-sonnet-4-6"); got != "denylist" {
+		t.Errorf("env override should force denylist, got %q", got)
+	}
+	if len(cfg.Policy.ModelRules) != 0 {
+		t.Errorf("env override should clear model rules, got %v", cfg.Policy.ModelRules)
+	}
+}
+
 func TestEnvOverrides(t *testing.T) {
 	cleanEnv(t)
 	t.Setenv("GUARD_EXTRA_ALLOWED", "foo:bar")
@@ -166,7 +248,7 @@ func TestMergedDeniedUnion(t *testing.T) {
 
 func cleanEnv(t *testing.T) {
 	for _, k := range []string{
-		"GUARD_CONFIG", "XDG_CONFIG_HOME",
+		"GUARD_CONFIG", "XDG_CONFIG_HOME", "GUARD_POLICY_MODE",
 		"GUARD_EXTRA_ALLOWED", "GUARD_EXTRA_DENIED",
 		"GUARD_ALLOWED_DIRS", "GUARD_ARGCHECK_DISABLED",
 		"GUARD_LOG_LEVEL", "GUARD_LOG_FILE",

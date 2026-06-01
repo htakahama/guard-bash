@@ -25,6 +25,7 @@ import (
 	"github.com/htakahama/guard-bash/internal/logging"
 	"github.com/htakahama/guard-bash/internal/parse"
 	"github.com/htakahama/guard-bash/internal/policy"
+	"github.com/htakahama/guard-bash/internal/transcript"
 )
 
 // Injected via -ldflags at release build time by GoReleaser. In dev builds
@@ -125,7 +126,10 @@ func printStat(cfg *config.Config) {
 	sort.Strings(allowed)
 	sort.Strings(denied)
 	fmt.Println()
-	fmt.Printf("policy.mode:    %s\n", policy.ParseMode(cfg.Policy.Mode))
+	fmt.Printf("policy.mode:    %s (fallback)\n", policy.ParseMode(cfg.Policy.Mode))
+	for _, r := range cfg.Policy.ModelRules {
+		fmt.Printf("  model ~%q -> %s\n", r.Match, policy.ParseMode(r.Mode))
+	}
 	fmt.Printf("policy.allowed: %d commands\n", len(allowed))
 	fmt.Printf("policy.denied:  %d commands\n", len(denied))
 
@@ -160,9 +164,10 @@ type effectiveConfig struct {
 }
 
 type effectivePolicy struct {
-	Mode    string   `toml:"mode"`
-	Allowed []string `toml:"allowed"`
-	Denied  []string `toml:"denied"`
+	Mode       string             `toml:"mode"`
+	ModelRules []config.ModelRule `toml:"model_rules"`
+	Allowed    []string           `toml:"allowed"`
+	Denied     []string           `toml:"denied"`
 }
 
 type effectiveCD struct {
@@ -191,9 +196,10 @@ func printEffectiveTOML(cfg *config.Config) int {
 
 	eff := effectiveConfig{
 		Policy: effectivePolicy{
-			Mode:    string(policy.ParseMode(cfg.Policy.Mode)),
-			Allowed: allowed,
-			Denied:  denied,
+			Mode:       string(policy.ParseMode(cfg.Policy.Mode)),
+			ModelRules: cfg.Policy.ModelRules,
+			Allowed:    allowed,
+			Denied:     denied,
 		},
 		CheckCD: effectiveCD{
 			AllowedDirs: cfg.CheckCD.AllowedDirs,
@@ -208,6 +214,9 @@ func printEffectiveTOML(cfg *config.Config) int {
 	}
 
 	// Ensure empty slices render as [] not omitted.
+	if eff.Policy.ModelRules == nil {
+		eff.Policy.ModelRules = []config.ModelRule{}
+	}
 	if eff.CheckCD.AllowedDirs == nil {
 		eff.CheckCD.AllowedDirs = []string{}
 	}
@@ -242,7 +251,9 @@ func run(stdin *os.File, stdout *os.File, cfg *config.Config, logger *slog.Logge
 	}
 
 	cmds := extract.Commands(file)
-	p := policy.New(policy.ParseMode(cfg.Policy.Mode), cfg.MergedAllowed(), cfg.MergedDenied())
+	model := transcript.CurrentModel(in.TranscriptPath)
+	mode := policy.ParseMode(cfg.ResolveMode(model))
+	p := policy.New(mode, cfg.MergedAllowed(), cfg.MergedDenied())
 	res := p.Check(cmds)
 	if res.Decision != policy.DecisionAllow {
 		return policyError(res, cmds)
@@ -269,6 +280,8 @@ func run(stdin *os.File, stdout *os.File, cfg *config.Config, logger *slog.Logge
 
 	logger.Info("allow",
 		"cwd", in.CWD,
+		"model", model,
+		"mode", string(mode),
 		"cmd", in.ToolInput.Command,
 		"extracted", cmds,
 		"fixed_cmd", fixed,
